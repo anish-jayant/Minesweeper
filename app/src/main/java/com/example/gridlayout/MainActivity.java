@@ -12,6 +12,7 @@ import android.widget.TextView;
 
 import java.util.ArrayList;
 
+// leaving a comment above main class to confirm that pushes are enabled
 public class MainActivity extends AppCompatActivity {
 
     private static final int COLUMN_COUNT = 2;
