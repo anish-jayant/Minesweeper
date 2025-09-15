@@ -5,21 +5,41 @@ import androidx.gridlayout.widget.GridLayout;
 
 import android.content.res.Resources;
 import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
 import android.os.Bundle;
-import android.view.LayoutInflater;
+import android.os.Handler;
+import android.os.Looper;
+import android.util.Log;
 import android.view.View;
+import android.widget.Button;
 import android.widget.TextView;
 
 import java.util.ArrayList;
+import java.util.Random;
 
-// leaving a comment above main class to confirm that pushes are enabled
 public class MainActivity extends AppCompatActivity {
 
-    private static final int COLUMN_COUNT = 2;
+    private static final int COLUMN_COUNT = 10;
+    private static final int BOMB_COUNT = 5;
+    private static final String TAG = "Minesweeper";
 
-    // save the TextViews of all cells in an array, so later on,
-    // when a TextView is clicked, we know which cell it is
     private ArrayList<TextView> cell_tvs;
+    private ArrayList<Integer> bombIndices;
+
+    private TextView statusText;
+    private TextView flagCounter;
+    private TextView timerText;
+    private Button restartButton;
+    private GridLayout grid;
+
+    private Handler timerHandler;
+    private Runnable timerRunnable;
+    private int secondsElapsed;
+    private boolean gameOver;
+
+    private int revealedSafeSquares;
+    private int correctlyFlaggedBombs;
+    private int remainingFlags;
 
     private int dpToPixel(int dp) {
         float density = Resources.getSystem().getDisplayMetrics().density;
@@ -31,101 +51,273 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        cell_tvs = new ArrayList<TextView>();
+        setTitle("CSCI 310 - Anish Jayant");
 
-        // Method (1): add statically created cells
-        TextView tv00 = (TextView) findViewById(R.id.textView00);
-        TextView tv01 = (TextView) findViewById(R.id.textView01);
-        TextView tv10 = (TextView) findViewById(R.id.textView10);
-        TextView tv11 = (TextView) findViewById(R.id.textView11);
+        statusText = findViewById(R.id.statusText);
+        flagCounter = findViewById(R.id.flagCounter);
+        timerText = findViewById(R.id.timerText);
+        restartButton = findViewById(R.id.restartButton);
+        grid = findViewById(R.id.gridLayout01);
 
-        tv00.setTextColor(Color.GRAY);
-        tv00.setBackgroundColor(Color.GRAY);
-        tv00.setOnClickListener(this::onClickTV);
+        restartButton.setOnClickListener(v -> resetGame());
 
-        tv01.setTextColor(Color.GRAY);
-        tv01.setBackgroundColor(Color.GRAY);
-        tv01.setOnClickListener(this::onClickTV);
+        setupBoard();
+    }
 
-        tv10.setTextColor(Color.GRAY);
-        tv10.setBackgroundColor(Color.GRAY);
-        tv10.setOnClickListener(this::onClickTV);
+    private void setupBoard() {
+        cell_tvs = new ArrayList<>();
+        grid.removeAllViews();
+        grid.setRowCount(COLUMN_COUNT);
+        grid.setColumnCount(COLUMN_COUNT);
 
-        tv11.setTextColor(Color.GRAY);
-        tv11.setBackgroundColor(Color.GRAY);
-        tv11.setOnClickListener(this::onClickTV);
+        gameOver = false;
+        revealedSafeSquares = 0;
+        correctlyFlaggedBombs = 0;
+        remainingFlags = BOMB_COUNT;
 
-        cell_tvs.add(tv00);
-        cell_tvs.add(tv01);
-        cell_tvs.add(tv10);
-        cell_tvs.add(tv11);
+        bombIndices = new ArrayList<>();
+        Random rand = new Random();
+        while (bombIndices.size() < BOMB_COUNT) {
+            int idx = rand.nextInt(COLUMN_COUNT * COLUMN_COUNT);
+            if (!bombIndices.contains(idx)) {
+                bombIndices.add(idx);
+            }
+        }
 
-        // Method (2): add four dynamically created cells
-        GridLayout grid = (GridLayout) findViewById(R.id.gridLayout01);
-        for (int i = 2; i<=3; i++) {
-            for (int j=0; j<=1; j++) {
+        for (int idx : bombIndices) {
+            int row = idx / COLUMN_COUNT;
+            int col = idx % COLUMN_COUNT;
+            Log.d(TAG, "Bomb at: (" + row + "," + col + ")");
+        }
+
+        for (int i = 0; i < COLUMN_COUNT; i++) {
+            for (int j = 0; j < COLUMN_COUNT; j++) {
                 TextView tv = new TextView(this);
-                tv.setHeight( dpToPixel(64) );
-                tv.setWidth( dpToPixel(64) );
-                tv.setTextSize( 32 );//dpToPixel(32) );
+                tv.setTextColor(Color.GRAY);
+                tv.setBackgroundColor(Color.parseColor("#32CD32")); // lime green
                 tv.setTextAlignment(TextView.TEXT_ALIGNMENT_CENTER);
-                tv.setTextColor(Color.GRAY);
-                tv.setBackgroundColor(Color.GRAY);
+                tv.setTextSize(16);
                 tv.setOnClickListener(this::onClickTV);
 
-                GridLayout.LayoutParams lp = new GridLayout.LayoutParams();
-                lp.setMargins(dpToPixel(2), dpToPixel(2), dpToPixel(2), dpToPixel(2));
-                lp.rowSpec = GridLayout.spec(i);
-                lp.columnSpec = GridLayout.spec(j);
+                GridLayout.LayoutParams lp =
+                        new GridLayout.LayoutParams(GridLayout.spec(i, 1f), GridLayout.spec(j, 1f));
+                lp.width = 0;
+                lp.height = 0;
+                lp.setMargins(dpToPixel(1), dpToPixel(1), dpToPixel(1), dpToPixel(1));
 
                 grid.addView(tv, lp);
-
                 cell_tvs.add(tv);
             }
         }
 
-        // Method (3): add four dynamically created cells with LayoutInflater
-        LayoutInflater li = LayoutInflater.from(this);
-        for (int i = 4; i<=5; i++) {
-            for (int j=0; j<=1; j++) {
-                TextView tv = (TextView) li.inflate(R.layout.custom_cell_layout, grid, false);
-                //tv.setText(String.valueOf(i)+String.valueOf(j));
-                tv.setTextColor(Color.GRAY);
-                tv.setBackgroundColor(Color.GRAY);
-                tv.setOnClickListener(this::onClickTV);
+        statusText.setVisibility(View.GONE);
+        restartButton.setVisibility(View.GONE);
 
-                GridLayout.LayoutParams lp = (GridLayout.LayoutParams) tv.getLayoutParams();
-                lp.rowSpec = GridLayout.spec(i);
-                lp.columnSpec = GridLayout.spec(j);
+        flagCounter.setText("🚩 " + remainingFlags);
+        timerText.setText("⏱ 0s");
 
-                grid.addView(tv, lp);
-
-                cell_tvs.add(tv);
+        secondsElapsed = 0;
+        timerHandler = new Handler(Looper.getMainLooper());
+        timerRunnable = new Runnable() {
+            @Override
+            public void run() {
+                if (!gameOver) {
+                    secondsElapsed++;
+                    timerText.setText("⏱ " + secondsElapsed + "s");
+                    timerHandler.postDelayed(this, 1000);
+                }
             }
-        }
-
+        };
+        timerHandler.postDelayed(timerRunnable, 1000);
     }
 
     private int findIndexOfCellTextView(TextView tv) {
-        for (int n=0; n<cell_tvs.size(); n++) {
-            if (cell_tvs.get(n) == tv)
-                return n;
+        for (int n = 0; n < cell_tvs.size(); n++) {
+            if (cell_tvs.get(n) == tv) return n;
         }
         return -1;
     }
 
-    public void onClickTV(View view){
+    public void onClickTV(View view) {
+        if (gameOver) return;
+
         TextView tv = (TextView) view;
         int n = findIndexOfCellTextView(tv);
-        int i = n/COLUMN_COUNT;
-        int j = n%COLUMN_COUNT;
-        tv.setText(String.valueOf(i)+String.valueOf(j));
-        if (tv.getCurrentTextColor() == Color.GRAY) {
-            tv.setTextColor(Color.GREEN);
-            tv.setBackgroundColor(Color.parseColor("lime"));
-        }else {
-            tv.setTextColor(Color.GRAY);
-            tv.setBackgroundColor(Color.LTGRAY);
+        int row = n / COLUMN_COUNT;
+        int col = n % COLUMN_COUNT;
+
+        Object tag = tv.getTag();
+        // If already revealed, ignore further clicks
+        if ("revealed".equals(tag)) return;
+
+        // State encoding used in this Activity:
+        // null or 0 = untouched, 1 = flagged, 2 = just before reveal (we'll set "revealed" later)
+        int state = (tag instanceof Integer) ? (Integer) tag : 0;
+
+        if (state == 0) {
+            // First click → place a flag, only if the tile is still unrevealed (lime) and flags remain
+            if (remainingFlags > 0
+                    && tv.getBackground() instanceof ColorDrawable
+                    && ((ColorDrawable) tv.getBackground()).getColor() == Color.parseColor("#32CD32")) {
+                tv.setText("🚩");
+                tv.setTextColor(Color.RED);
+                tv.setTag(1); // flagged
+                remainingFlags--;
+                flagCounter.setText("🚩 " + remainingFlags);
+
+                if (bombIndices.contains(n)) {
+                    correctlyFlaggedBombs++;
+                }
+                checkWinCondition();
+            }
+            return;
         }
+
+        if (state == 1) {
+            // Second click on a flagged cell → remove flag AND reveal the cell.
+            // Give the flag back first:
+            tv.setText(""); // remove flag icon
+            remainingFlags++;
+            if (remainingFlags > BOMB_COUNT) remainingFlags = BOMB_COUNT; // clamp, just in case
+            flagCounter.setText("🚩 " + remainingFlags);
+
+            boolean wasCorrectFlag = bombIndices.contains(n);
+            if (wasCorrectFlag && correctlyFlaggedBombs > 0) {
+                correctlyFlaggedBombs--; // undo the previously "correct" flag count
+            }
+
+            tv.setTag(2); // transitional; revealSquare() will mark "revealed"
+
+            if (wasCorrectFlag) {
+                // Bomb explodes → lose
+                tv.setText("💣");
+                tv.setTextColor(Color.WHITE);
+                tv.setBackgroundColor(Color.RED);
+
+                // Reveal all bombs
+                for (int idx : bombIndices) {
+                    TextView bombCell = cell_tvs.get(idx);
+                    bombCell.setText("💣");
+                    bombCell.setTextColor(Color.WHITE);
+                    bombCell.setBackgroundColor(Color.BLACK);
+                }
+
+                gameOver = true;
+                statusText.setText("YOU LOSE (" + secondsElapsed + "s)");
+                statusText.setTextColor(Color.RED);
+                statusText.setVisibility(View.VISIBLE);
+                restartButton.setVisibility(View.VISIBLE);
+            } else {
+                // Safe → reveal (will cascade if 0)
+                revealSquare(row, col);
+                checkWinCondition();
+            }
+            return;
+        }
+
+        // Any other state (e.g., already set to reveal), do nothing
+    }
+
+
+    private void revealSquare(int row, int col) {
+        int idx = row * COLUMN_COUNT + col;
+        TextView tv = cell_tvs.get(idx);
+
+        if (tv.getTag() != null && tv.getTag().equals("revealed")) {
+            return;
+        }
+
+        int neighborBombs = countNeighborBombs(row, col);
+
+        tv.setBackgroundColor(Color.LTGRAY);
+        if (neighborBombs > 0) {
+            tv.setText(String.valueOf(neighborBombs));
+            tv.setTextColor(getNumberColor(neighborBombs));
+        } else {
+            tv.setText("");
+        }
+
+        tv.setTag("revealed");
+        revealedSafeSquares++;
+
+        if (neighborBombs == 0) {
+            revealEmptyNeighbors(row, col);
+        }
+    }
+
+    private void revealEmptyNeighbors(int row, int col) {
+        int[] dRow = {-1, -1, -1, 0, 0, 1, 1, 1};
+        int[] dCol = {-1, 0, 1, -1, 1, -1, 0, 1};
+
+        for (int k = 0; k < 8; k++) {
+            int newRow = row + dRow[k];
+            int newCol = col + dCol[k];
+
+            if (newRow >= 0 && newRow < COLUMN_COUNT &&
+                    newCol >= 0 && newCol < COLUMN_COUNT) {
+                int idx = newRow * COLUMN_COUNT + newCol;
+                if (!bombIndices.contains(idx)) {
+                    revealSquare(newRow, newCol);
+                }
+            }
+        }
+    }
+
+    private int countNeighborBombs(int row, int col) {
+        int count = 0;
+        int[] dRow = {-1, -1, -1, 0, 0, 1, 1, 1};
+        int[] dCol = {-1, 0, 1, -1, 1, -1, 0, 1};
+
+        for (int k = 0; k < 8; k++) {
+            int newRow = row + dRow[k];
+            int newCol = col + dCol[k];
+
+            if (newRow >= 0 && newRow < COLUMN_COUNT &&
+                    newCol >= 0 && newCol < COLUMN_COUNT) {
+                int neighborIndex = newRow * COLUMN_COUNT + newCol;
+                if (bombIndices.contains(neighborIndex)) {
+                    count++;
+                }
+            }
+        }
+        return count;
+    }
+
+    private int getNumberColor(int num) {
+        switch (num) {
+            case 1: return Color.BLUE;
+            case 2: return Color.parseColor("#228B22");
+            case 3: return Color.RED;
+            case 4: return Color.rgb(0, 0, 139);
+            case 5: return Color.rgb(139, 69, 19);
+            case 6: return Color.CYAN;
+            case 7: return Color.BLACK;
+            case 8: return Color.DKGRAY;
+            default: return Color.BLACK;
+        }
+    }
+
+    private void checkWinCondition() {
+        int totalSafeSquares = COLUMN_COUNT * COLUMN_COUNT - BOMB_COUNT;
+
+        if (revealedSafeSquares == totalSafeSquares || correctlyFlaggedBombs == BOMB_COUNT) {
+            gameOver = true;
+
+            for (int idx : bombIndices) {
+                TextView bombCell = cell_tvs.get(idx);
+                bombCell.setText("🚩");
+                bombCell.setTextColor(Color.RED);
+                bombCell.setBackgroundColor(Color.LTGRAY);
+            }
+
+            statusText.setText("YOU WIN (" + secondsElapsed + "s)");
+            statusText.setTextColor(Color.parseColor("#4CAF50"));
+            statusText.setVisibility(View.VISIBLE);
+            restartButton.setVisibility(View.VISIBLE);
+        }
+    }
+
+    private void resetGame() {
+        setupBoard();
     }
 }
