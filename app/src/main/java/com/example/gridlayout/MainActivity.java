@@ -147,11 +147,8 @@ public class MainActivity extends AppCompatActivity {
         int col = n % COLUMN_COUNT;
 
         Object tag = tv.getTag();
-        // If already revealed, ignore further clicks
         if ("revealed".equals(tag)) return;
 
-        // State encoding used in this Activity:
-        // null or 0 = untouched, 1 = flagged, 2 = just before reveal (we'll set "revealed" later)
         int state = (tag instanceof Integer) ? (Integer) tag : 0;
 
         if (state == 0) {
