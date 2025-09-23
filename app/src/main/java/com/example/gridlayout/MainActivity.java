@@ -183,15 +183,14 @@ public class MainActivity extends AppCompatActivity {
                 correctlyFlaggedBombs--; // undo the previously "correct" flag count
             }
 
-            tv.setTag(2); // transitional; revealSquare() will mark "revealed"
+            tv.setTag(2);
 
             if (wasCorrectFlag) {
-                // Bomb explodes → lose
+
                 tv.setText("💣");
                 tv.setTextColor(Color.WHITE);
                 tv.setBackgroundColor(Color.RED);
 
-                // Reveal all bombs
                 for (int idx : bombIndices) {
                     TextView bombCell = cell_tvs.get(idx);
                     bombCell.setText("💣");
