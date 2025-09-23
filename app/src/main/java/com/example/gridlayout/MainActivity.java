@@ -51,7 +51,7 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        setTitle("CSCI 310 - Anish Jayant");
+        setTitle("CSCI 310 Minesweeper: Anish Jayant");
 
         statusText = findViewById(R.id.statusText);
         flagCounter = findViewById(R.id.flagCounter);
@@ -205,14 +205,13 @@ public class MainActivity extends AppCompatActivity {
                 statusText.setVisibility(View.VISIBLE);
                 restartButton.setVisibility(View.VISIBLE);
             } else {
-                // Safe → reveal (will cascade if 0)
+
                 revealSquare(row, col);
                 checkWinCondition();
             }
             return;
         }
 
-        // Any other state (e.g., already set to reveal), do nothing
     }
 
 
