@@ -29,12 +29,34 @@
             android:visibility="gone"
             android:layout_marginEnd="16dp"/>
 
+        <!-- Flag Tool (clickable) -->
+        <TextView
+            android:id="@+id/flagTool"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="🚩"
+            android:textSize="24sp"
+            android:clickable="true"
+            android:focusable="true"
+            android:layout_marginEnd="16dp"/>
+
+        <!-- Pickaxe Tool (clickable) -->
+        <TextView
+            android:id="@+id/digTool"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="⛏"
+            android:textSize="24sp"
+            android:clickable="true"
+            android:focusable="true"
+            android:layout_marginEnd="32dp"/>
+
         <!-- Flag Counter -->
         <TextView
             android:id="@+id/flagCounter"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="🚩 5"
+            android:text="5"
             android:textSize="20sp"
             android:layout_marginEnd="32dp"/>
 

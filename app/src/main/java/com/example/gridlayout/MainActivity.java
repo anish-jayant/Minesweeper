@@ -29,6 +29,8 @@ public class MainActivity extends AppCompatActivity {
     private TextView statusText;
     private TextView flagCounter;
     private TextView timerText;
+    private TextView flagTool;
+    private TextView digTool;
     private Button restartButton;
     private GridLayout grid;
 
@@ -40,6 +42,9 @@ public class MainActivity extends AppCompatActivity {
     private int revealedSafeSquares;
     private int correctlyFlaggedBombs;
     private int remainingFlags;
+
+    private enum Mode { FLAG, DIG }
+    private Mode currentMode = Mode.FLAG; // default mode
 
     private int dpToPixel(int dp) {
         float density = Resources.getSystem().getDisplayMetrics().density;
@@ -56,10 +61,29 @@ public class MainActivity extends AppCompatActivity {
         statusText = findViewById(R.id.statusText);
         flagCounter = findViewById(R.id.flagCounter);
         timerText = findViewById(R.id.timerText);
+        flagTool = findViewById(R.id.flagTool);
+        digTool = findViewById(R.id.digTool);
         restartButton = findViewById(R.id.restartButton);
         grid = findViewById(R.id.gridLayout01);
 
         restartButton.setOnClickListener(v -> resetGame());
+
+        // Tool selection
+        flagTool.setOnClickListener(v -> {
+            currentMode = Mode.FLAG;
+            flagTool.setTextColor(Color.RED);
+            digTool.setTextColor(Color.GRAY);
+        });
+
+        digTool.setOnClickListener(v -> {
+            currentMode = Mode.DIG;
+            digTool.setTextColor(Color.RED);
+            flagTool.setTextColor(Color.GRAY);
+        });
+
+        // Default: FLAG mode highlighted
+        flagTool.setTextColor(Color.RED);
+        digTool.setTextColor(Color.GRAY);
 
         setupBoard();
     }
@@ -146,18 +170,26 @@ public class MainActivity extends AppCompatActivity {
         int row = n / COLUMN_COUNT;
         int col = n % COLUMN_COUNT;
 
-        Object tag = tv.getTag();
-        if ("revealed".equals(tag)) return;
+        if ("revealed".equals(tv.getTag())) return;
 
+        if (currentMode == Mode.FLAG) {
+            handleFlagMode(tv, n);
+        } else if (currentMode == Mode.DIG) {
+            handleDigMode(tv, n, row, col);
+        }
+    }
+
+    private void handleFlagMode(TextView tv, int n) {
+        Object tag = tv.getTag();
         int state = (tag instanceof Integer) ? (Integer) tag : 0;
 
-        if (state == 0) {
+        if (state == 0) { // place flag
             if (remainingFlags > 0
                     && tv.getBackground() instanceof ColorDrawable
                     && ((ColorDrawable) tv.getBackground()).getColor() == Color.parseColor("#32CD32")) {
                 tv.setText("🚩");
                 tv.setTextColor(Color.RED);
-                tv.setTag(1); // flagged
+                tv.setTag(1);
                 remainingFlags--;
                 flagCounter.setText("🚩 " + remainingFlags);
 
@@ -166,50 +198,43 @@ public class MainActivity extends AppCompatActivity {
                 }
                 checkWinCondition();
             }
-            return;
-        }
-
-        if (state == 1) {
+        } else if (state == 1) { // remove flag
             tv.setText("");
+            tv.setTag(0);
             remainingFlags++;
             if (remainingFlags > BOMB_COUNT) remainingFlags = BOMB_COUNT;
             flagCounter.setText("🚩 " + remainingFlags);
 
-            boolean wasCorrectFlag = bombIndices.contains(n);
-            if (wasCorrectFlag && correctlyFlaggedBombs > 0) {
+            if (bombIndices.contains(n) && correctlyFlaggedBombs > 0) {
                 correctlyFlaggedBombs--;
             }
-
-            tv.setTag(2);
-
-            if (wasCorrectFlag) {
-
-                tv.setText("💣");
-                tv.setTextColor(Color.WHITE);
-                tv.setBackgroundColor(Color.RED);
-
-                for (int idx : bombIndices) {
-                    TextView bombCell = cell_tvs.get(idx);
-                    bombCell.setText("💣");
-                    bombCell.setTextColor(Color.WHITE);
-                    bombCell.setBackgroundColor(Color.BLACK);
-                }
-
-                gameOver = true;
-                statusText.setText("YOU LOSE (" + secondsElapsed + "s)");
-                statusText.setTextColor(Color.RED);
-                statusText.setVisibility(View.VISIBLE);
-                restartButton.setVisibility(View.VISIBLE);
-            } else {
-
-                revealSquare(row, col);
-                checkWinCondition();
-            }
-            return;
         }
-
     }
 
+    private void handleDigMode(TextView tv, int n, int row, int col) {
+        if (bombIndices.contains(n)) {
+            // Bomb hit
+            tv.setText("💣");
+            tv.setTextColor(Color.WHITE);
+            tv.setBackgroundColor(Color.RED);
+
+            for (int idx : bombIndices) {
+                TextView bombCell = cell_tvs.get(idx);
+                bombCell.setText("💣");
+                bombCell.setTextColor(Color.WHITE);
+                bombCell.setBackgroundColor(Color.BLACK);
+            }
+
+            gameOver = true;
+            statusText.setText("YOU LOSE (" + secondsElapsed + "s)");
+            statusText.setTextColor(Color.RED);
+            statusText.setVisibility(View.VISIBLE);
+            restartButton.setVisibility(View.VISIBLE);
+        } else {
+            revealSquare(row, col);
+            checkWinCondition();
+        }
+    }
 
     private void revealSquare(int row, int col) {
         int idx = row * COLUMN_COUNT + col;
