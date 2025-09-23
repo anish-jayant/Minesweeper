@@ -152,7 +152,6 @@ public class MainActivity extends AppCompatActivity {
         int state = (tag instanceof Integer) ? (Integer) tag : 0;
 
         if (state == 0) {
-            // First click → place a flag, only if the tile is still unrevealed (lime) and flags remain
             if (remainingFlags > 0
                     && tv.getBackground() instanceof ColorDrawable
                     && ((ColorDrawable) tv.getBackground()).getColor() == Color.parseColor("#32CD32")) {
@@ -171,16 +170,14 @@ public class MainActivity extends AppCompatActivity {
         }
 
         if (state == 1) {
-            // Second click on a flagged cell → remove flag AND reveal the cell.
-            // Give the flag back first:
-            tv.setText(""); // remove flag icon
+            tv.setText("");
             remainingFlags++;
-            if (remainingFlags > BOMB_COUNT) remainingFlags = BOMB_COUNT; // clamp, just in case
+            if (remainingFlags > BOMB_COUNT) remainingFlags = BOMB_COUNT;
             flagCounter.setText("🚩 " + remainingFlags);
 
             boolean wasCorrectFlag = bombIndices.contains(n);
             if (wasCorrectFlag && correctlyFlaggedBombs > 0) {
-                correctlyFlaggedBombs--; // undo the previously "correct" flag count
+                correctlyFlaggedBombs--;
             }
 
             tv.setTag(2);
